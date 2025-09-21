@@ -1,0 +1,270 @@
+---
+title: "Palmer Penguins: Statistical Modelling & Visualisation"
+author: "Adam Robinson"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+library(palmerpenguins)
+library(rpart)
+```
+
+# Introduction
+
+This report explores the Palmer Penguins dataset to answer three questions:
+
+1.  How do penguin species differ in physical measurements?
+2.  Are these differences statistically significant?
+3.  Can we predict species based on their physical characteristics?
+
+We’ll use summary statistics, plots, ANOVA and t-tests for comparisons, and a decision tree classifier for predictions.
+
+# Data Review & Cleaning
+
+We will start by loading the penguins dataset and exploring the data. We will check the structure, identify missing values, and prepare a clean dataset for plots, tests, and models.
+
+```{r}
+# Load the data
+data("penguins")   # Load penguins dataset
+
+# First look at the dataset
+head(penguins)
+```
+
+```{r}
+# Check missing values
+cat("No. of missing values: ",sum(is.na(penguins)), "\n")
+
+# Remove rows with missing values
+penguins_clean <- na.omit(penguins)
+
+# Number of rows and columns
+cat("No. of rows: ", nrow(penguins_clean), "\n")
+cat("No. of columns: ", ncol(penguins_clean), "\n")
+
+# Unique values
+cat("\nSpecies: \n");unique(penguins_clean$species)
+
+cat("\nIslands: \n");unique(penguins_clean$island)
+```
+
+```{r}
+# Dataset summary
+summary(penguins)
+```
+
+------------------------------------------------------------------------
+
+# Exploratory Data Analysis
+
+We will now take a closer look at distributions of each variable and the relationships between penguin species.
+
+### Summary Statistics by Species
+
+```{r}
+# Summary statistics by species
+cat("Average Bill Length\n");tapply(penguins_clean$bill_length_mm, penguins_clean$species, mean)
+cat("\nAverage Bill Depth\n");tapply(penguins_clean$bill_depth_mm, penguins_clean$species, mean)
+cat("\nAverage Flipper Length\n");tapply(penguins_clean$flipper_length_mm, penguins_clean$species, mean)
+cat("\nAverage Body Mass\n");tapply(penguins_clean$body_mass_g, penguins_clean$species, mean)
+cat("\nNo. of Each Species");table(penguins_clean$species)
+```
+
+### Distribution of Species by Island
+
+```{r}
+# Island distribution table
+table(penguins_clean$island, penguins_clean$species)
+```
+
+```{r fig.width=6, fig.height=4}
+# Island distribution bar chart
+barplot(table(penguins_clean$species, penguins_clean$island),
+        beside = TRUE, legend = TRUE,
+        main = "Penguin Species Across Islands",
+        xlab = "Island", ylab = "Count")
+```
+
+Adelie penguins are found in all 3 islands, whereas Chinstrap and Gentoo penguins are exclusive to Dream and Biscoe respectively.
+
+### Flipper Length Across Species
+
+```{r fig.width=6, fig.height=4}
+# Flipper length box plot
+boxplot(flipper_length_mm ~ species, data = penguins_clean,
+        main = "Flipper Length by Species",
+        xlab = "Species", ylab = "Flipper length (mm)")
+```
+
+Gentoo penguins typically have the longest flippers, while Adelie penguins tend to have the shortest flippers, with Adelie and Chinstrap penguins having similar flipper lengths.
+
+### Body Mass Across Species
+
+```{r fig.width=7, fig.height=6}
+# Body mass box plot
+boxplot(body_mass_g ~ sex + species, data = penguins_clean,
+        main = "Body Mass by Sex Across Species",
+        ylab = "Body mass (g)", las = 2)
+```
+
+Male penguins are heavier than female penguins in all species on average. Both male and female Gentoo penguins are heavier than both other penguin species - these two species follow broadly similar weight measurements.
+
+### Body Mass vs. Flipper Length
+
+```{r fig.width=7, fig.height=6}
+# Body Mass vs. Flipper Length scatter plot
+plot(penguins_clean$flipper_length_mm, penguins_clean$body_mass_g,
+     col = penguins_clean$species,
+     xlab = "Flipper length (mm)", ylab = "Body mass (g)",
+     main = "Flipper Length vs Body Mass")
+legend("topleft", legend = levels(penguins_clean$species), col = 1:3, pch = 1)
+```
+
+There is a positive correlation between flipper length and body mass. It also appears that Gentoo penguins are generally heavier and have longer flippers than both Adelie and Chinstrap penguins.
+
+### Bill Length Across Species
+
+```{r fig.width=7, fig.height=6}
+# Bill lengths box plot
+boxplot(bill_length_mm ~ species, data = penguins_clean,
+        main = "Bill Length by Species",
+        ylab = "Bill length (mm)")
+```
+
+Adelie penguins have much shorter bills than both Chinstrap and Gentoo penguins, both of which have fairly similar bill lengths overall.
+
+------------------------------------------------------------------------
+
+# Statistical Testing
+
+We will now test whether bill lengths and body mass differ significantly across species using an Analysis of Variance test.
+
+```{r}
+# ANOVA: Bill lengths
+anova_bill_length <- aov(bill_length_mm ~ species, data = penguins_clean)
+summary(anova_bill_length)
+```
+
+```{r}
+# ANOVA: Body mass
+anova_mass <- aov(body_mass_g ~ species, data = penguins_clean)
+summary(anova_mass)
+```
+
+Bill length differs strongly across species. The ANOVA shows F = 397.3, p \< 0.001.\
+Body mass also differs across species. The ANOVA shows F = 341.9, p \< 0.001.\
+In both cases, the F value is large, meaning that the differences between species are much bigger than the differences within species. The P value is also very small meaning that the results are statistically significant and highly unlikely due to chance. Thus, we conclude that species is a strong factor in both bill length and body mass.
+
+We will now test the flipper lengths of the penguins species using a two sample t-test.
+
+```{r}
+# Adelie vs Chinstrap
+adelie_chinstrap <- subset(penguins_clean, species %in% c("Adelie","Chinstrap"))
+t.test(flipper_length_mm ~ species, data = adelie_chinstrap)
+```
+
+```{r}
+# Adelie vs Gentoo
+adelie_gentoo <- subset(penguins_clean, species %in% c("Adelie","Gentoo"))
+t.test(flipper_length_mm ~ species, data = adelie_gentoo)
+```
+
+Chinstrap flippers are about 6 mm longer than Adelie on average - a small but significant gap, with p \< 0.001.
+
+Gentoo flippers are about 27 mm longer than Adelie - a much larger, and also significant, difference, again with p \< 0.001.
+
+The contrast with Gentoo is the strongest and we note a clear, statistical difference in flipper length between all species.
+
+------------------------------------------------------------------------
+
+# Predictive modelling
+
+We now train a decision tree classification model using 70% of the data to predict species from a penguin's body measurements, testing the model on the remaining 30% of the data.
+
+```{r}
+set.seed(123)
+
+# Split data: train (70%) and test (30%)
+n <- nrow(penguins_clean)
+index <- sample(1:n, size = 0.7*n)
+train <- penguins_clean[index, ]
+test  <- penguins_clean[-index, ]
+
+# Fit decision tree on training data
+model <- rpart(species ~ bill_length_mm + bill_depth_mm + flipper_length_mm + body_mass_g,
+               data = train, method = "class")
+
+# Predict on test set
+predictions <- predict(model, newdata = test, type = "class")
+
+```
+
+### Model Performance
+
+```{r}
+# Confusion matrix
+confusion_matrix <- table(Predicted = predictions, Actual = test$species)
+confusion_matrix
+
+accuracy <- sum(diag(confusion_matrix)) / sum(confusion_matrix)
+cat("Overall accuracy:", round(accuracy * 100, 1), "%\n")
+
+# Sensitivity and Specificity for each species
+species <- c("Adelie", "Chinstrap", "Gentoo")
+
+for (s in species) {
+  TP <- confusion_matrix[s, s]
+  FN <- sum(confusion_matrix[, s]) - TP
+  FP <- sum(confusion_matrix[s, ]) - TP
+  TN <- sum(confusion_matrix) - TP - FN - FP
+  
+  sensitivity <- TP / (TP + FN)
+  specificity <- TN / (TN + FP)
+  
+  cat("\nSpecies:", s, "\n")
+  cat("Sensitivity:", round(sensitivity * 100, 1), "%\n")
+  cat("Specificity:", round(specificity * 100, 1), "%\n")
+}
+```
+
+The model reached 96.4% accuracy when predicting penguin species. Gentoo penguins were perfectly predicted with 100% sensitivity (true positives) and 100% specificity (true negatives). Most misclassifications occurred between Adelie and Chinstrap penguins, as Chinstrap has 95.8% sensitivity and 96.1% specificity, Adelie has 93% sensitivity and 98.2% specificity. This shows that physical traits are generally strong predictors of species.
+
+------------------------------------------------------------------------
+
+# Model visualisation
+
+### Predicted vs. Actual Species
+
+```{r}
+# Predicted vs Actual Species Plot
+barplot(confusion_matrix, beside = TRUE,
+        main = "Predicted vs Actual Species",
+        xlab = "Actual Species", ylab = "Count")
+
+# Add legend with title
+legend("topright", legend = colnames(confusion_matrix), fill = gray.colors(ncol(confusion_matrix)),
+       title = "Predicted Species", inset = c(0.15, 0))
+```
+
+This chart shows visual evidence of the previous findings, that the majority of the penguins' species are correctly classified.
+
+### Decision Tree visualisation
+
+```{r}
+# Visualize Decision Tree
+plot(model, uniform = TRUE, margin = 0.1)
+text(model, use.n = TRUE, all = TRUE)
+```
+
+This diagram shows that the tree relies strongly on flipper length and bill measurements to separate species. This explains why Gentoo penguins are predicted so reliably, due to their longer flippers and deeper bills. We saw during the EDA that there is some overlap between Adelie and Chinstrap penguins' bill depth and flipper length - explaining the misclassifications in the model performance.
+
+------------------------------------------------------------------------
+
+# Conclusion
+
+This report has confirmed significant physical differences between penguin species and built a highly accurate prediction model (96.4%) using these physical measurements.
+
+The results show that physical traits alone are a strong basis to predict species. For even greater accuracy, future models may use non-physical data, such as island inhabited, since initial exploration showed strong species separation by island. Additionally, exploring different models, like random forest or logistic regression, could also improve classification accuracy.
+
+------------------------------------------------------------------------
