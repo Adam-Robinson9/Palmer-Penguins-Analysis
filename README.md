@@ -4,7 +4,7 @@ An end-to-end data analysis project using the Palmer Penguins dataset in R. Focu
 
 Built in R with R Markdown, demonstrating applied data science skills with clear documentation.
 
-View the full report: [Palmer Penguins - Modelling & Analysis](./Palmer_Penguins_report.html)
+View the full report: [Palmer Penguins - Modelling & Analysis](./Palmer_Penguins_Report.html)
 
 ## Features
 - Data cleaning by handling missing values and summarising the dataset.
